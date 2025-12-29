@@ -783,6 +783,7 @@ We welcome contributions! Please follow these guidelines:
 
 ## 🔒 Security
 
+
 ### Security Features
 
 - **Password Hashing**: bcrypt with 12 rounds for secure password storage

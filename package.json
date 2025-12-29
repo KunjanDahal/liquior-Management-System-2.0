@@ -12,7 +12,7 @@
     "build:electron:workaround": "npm run build:electron:temp && npm run build:electron:move",
     "build:electron:temp": "npx electron-builder --dir --config.directories.output=dist-electron-build",
     "build:electron:move": "powershell -Command \"Remove-Item -Recurse -Force release\\win-unpacked -ErrorAction SilentlyContinue; Copy-Item -Path dist-electron-build\\win-unpacked\\* -Destination release\\win-unpacked -Recurse -Force; Remove-Item -Recurse -Force dist-electron-build\"",
-    "build:installer": "npm run clean:release && electron-builder",
+    "build:installer": "npm run clean:release && npm run build:renderer && npm run build:main && electron-builder",
     "clean:release": "rimraf release",
     "clean:release:ps1": "powershell -ExecutionPolicy Bypass -File clean-release.ps1",
     "build:renderer": "vite build",
