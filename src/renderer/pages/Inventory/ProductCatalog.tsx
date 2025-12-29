@@ -10,8 +10,8 @@ import {
 import React, { useMemo, useState } from 'react';
 import { Product } from '../../../shared/types';
 import { ProductTable } from './components/ProductTable';
-import { useProducts } from '../../../hooks/useProducts';
-import { LoadingSpinner } from '../../../components/LoadingSpinner';
+import { useProducts } from '../../hooks/useProducts';
+import { LoadingSpinner } from '../../components/LoadingSpinner';
 
 export const ProductCatalog: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');

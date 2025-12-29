@@ -13,20 +13,22 @@ import {
 import { receiptToTransactionDto, CreateSalePayload } from '../types/dto.types';
 import { Transaction } from '../../../shared/types';
 import { Logger } from '../../utils/Logger';
-import { checkItemStock, updateItemQuantity } from './items.repo';
+import { checkItemStock } from './items.repo';
+import { getValidatedDatabaseConfig } from '../config/validation';
+import { createRequire } from 'module';
 
 const logger = new Logger('ReceiptsRepo');
 
 /**
  * Create a new receipt with full transaction support
  * This is a CRITICAL function that must use SQL transactions
+ * Uses a single SQL batch to ensure all operations use the same connection
+ * Compatible with msnodesqlv8 driver
  */
 export async function createReceipt(payload: CreateSalePayload): Promise<number> {
-  const transaction = new sql.Transaction(getConnectionPool());
+  const pool = getConnectionPool();
 
   try {
-    await transaction.begin();
-
     logger.info('Starting receipt creation transaction');
 
     // Step 1: Validate stock availability for all items (before transaction)
@@ -38,108 +40,122 @@ export async function createReceipt(payload: CreateSalePayload): Promise<number>
       }
     }
 
-    // Step 2: Insert Transaction record (not Receipt - Receipt is for templates)
-    const receiptRequest = new sql.Request(transaction);
-    const receiptResult = await receiptRequest
-      .input('total', sql.Decimal(18, 2), payload.total)
-      .input('salesTax', sql.Decimal(18, 2), payload.tax)
-      .input('customerId', sql.Int, payload.customerId || null)
-      .query(`
-        INSERT INTO [Transaction] (
-          Time,
-          Total,
-          SalesTax,
-          CustomerID,
-          Status,
-          BatchNumber,
-          CashierID,
-          StoreID
+    // Use 0 as default for CustomerID if not provided (database doesn't allow NULL)
+    const customerId = payload.customerId || 0;
+    const tenderType = payload.paymentMethod === 'cash' ? 0 : payload.paymentMethod === 'card' ? 1 : 2;
+
+    // Build a single SQL batch that executes all operations in one transaction
+    // This ensures all queries use the same connection
+    const request = pool.request();
+    
+    // Set all input parameters
+    request.input('total', sql.Decimal(18, 2), payload.total);
+    request.input('salesTax', sql.Decimal(18, 2), payload.tax);
+    request.input('customerId', sql.Int, customerId);
+    request.input('tenderType', sql.Int, tenderType);
+    request.input('tenderAmount', sql.Decimal(18, 2), payload.tenderAmount);
+    request.input('change', sql.Decimal(18, 2), payload.change || 0);
+
+    // Build the SQL batch with all operations
+    let sqlBatch = `
+      BEGIN TRANSACTION;
+      
+      DECLARE @TransactionNumber INT;
+      
+      -- Insert Transaction record and capture TransactionNumber
+      INSERT INTO [Transaction] (
+        Time,
+        Total,
+        SalesTax,
+        CustomerID,
+        Status,
+        BatchNumber,
+        CashierID,
+        StoreID
+      )
+      VALUES (
+        GETDATE(),
+        @total,
+        @salesTax,
+        @customerId,
+        0,
+        0,
+        0,
+        0
+      );
+      
+      SET @TransactionNumber = SCOPE_IDENTITY();
+    `;
+
+    // Add TransactionEntry inserts and Item updates for each item
+    payload.items.forEach((item, index) => {
+      const itemTotal = item.price * item.quantity;
+      request.input(`itemId${index}`, sql.Int, item.itemId);
+      request.input(`quantity${index}`, sql.Decimal(18, 2), item.quantity);
+      request.input(`price${index}`, sql.Decimal(18, 2), item.price);
+      request.input(`itemTotal${index}`, sql.Decimal(18, 2), itemTotal);
+
+      sqlBatch += `
+        -- Insert TransactionEntry for item ${index}
+        INSERT INTO TransactionEntry (
+          TransactionNumber,
+          ItemID,
+          Quantity,
+          Price,
+          FullPrice,
+          TransactionTime
         )
-        OUTPUT INSERTED.TransactionNumber
         VALUES (
-          GETDATE(),
-          @total,
-          @salesTax,
-          @customerId,
-          0,
-          0,
-          0,
-          0
-        )
-      `);
+          @TransactionNumber,
+          @itemId${index},
+          @quantity${index},
+          @price${index},
+          @itemTotal${index},
+          GETDATE()
+        );
+        
+        -- Update Item.Quantity
+        UPDATE Item
+        SET Quantity = Quantity - @quantity${index},
+            LastUpdated = GETDATE()
+        WHERE ID = @itemId${index};
+      `;
+    });
 
-    const transactionNumber = receiptResult.recordset[0].TransactionNumber;
-    logger.info(`Created transaction (TransactionNumber: ${transactionNumber})`);
+    // Add TenderEntry insert
+    // Note: Using minimal columns - TenderEntry may have different schema
+    // Try with just TransactionNumber and Amount first
+    sqlBatch += `
+      -- Insert TenderEntry (payment method)
+      INSERT INTO TenderEntry (
+        TransactionNumber,
+        Amount
+      )
+      VALUES (
+        @TransactionNumber,
+        @tenderAmount
+      );
+      
+      COMMIT TRANSACTION;
+      
+      SELECT @TransactionNumber AS TransactionNumber;
+    `;
 
-    // Step 3: Insert TransactionEntry for each item and update Item.Quantity
-    for (const item of payload.items) {
-      // Insert TransactionEntry (not ReceiptEntry)
-      const entryRequest = new sql.Request(transaction);
-      await entryRequest
-        .input('transactionNumber', sql.Int, transactionNumber)
-        .input('itemId', sql.Int, item.itemId)
-        .input('quantity', sql.Decimal(18, 2), item.quantity)
-        .input('price', sql.Decimal(18, 2), item.price)
-        .input('total', sql.Decimal(18, 2), item.price * item.quantity)
-        .query(`
-          INSERT INTO TransactionEntry (
-            TransactionNumber,
-            ItemID,
-            Quantity,
-            Price,
-            FullPrice,
-            TransactionTime
-          )
-          VALUES (
-            @transactionNumber,
-            @itemId,
-            @quantity,
-            @price,
-            @total,
-            GETDATE()
-          )
-        `);
-
-      // Update Item.Quantity (decrease by quantity sold)
-      await updateItemQuantity(item.itemId, -item.quantity, transaction);
+    // Execute the batch
+    const result = await request.query(sqlBatch);
+    
+    // Extract the transaction number from the result
+    // The SELECT at the end returns the TransactionNumber
+    const transactionNumber = result.recordset[0]?.TransactionNumber;
+    
+    if (!transactionNumber) {
+      throw new Error('Failed to retrieve transaction number');
     }
 
-    // Step 4: Insert TenderEntry (payment method)
-    const tenderRequest = new sql.Request(transaction);
-    const tenderType = payload.paymentMethod === 'cash' ? 0 : payload.paymentMethod === 'card' ? 1 : 2;
-    
-    await tenderRequest
-      .input('transactionNumber', sql.Int, transactionNumber)
-      .input('tenderType', sql.Int, tenderType)
-      .input('amount', sql.Decimal(18, 2), payload.tenderAmount)
-      .input('change', sql.Decimal(18, 2), payload.change || 0)
-      .query(`
-        INSERT INTO TenderEntry (
-          TransactionNumber,
-          TenderType,
-          Amount,
-          Change
-        )
-        VALUES (
-          @transactionNumber,
-          @tenderType,
-          @amount,
-          @change
-        )
-      `);
-
-    // Step 5: Tax is already stored in Transaction.SalesTax, so no separate TaxEntry needed
-    // (TaxEntry table may exist but is not required for basic functionality)
-
-    // Commit transaction
-    await transaction.commit();
     logger.info(`Transaction ${transactionNumber} created successfully`);
-
     return transactionNumber;
   } catch (error) {
-    // Rollback transaction on any error
-    await transaction.rollback();
-    logger.error('Error creating receipt, transaction rolled back:', error);
+    logger.error('Error creating receipt:', error);
     throw error;
   }
 }

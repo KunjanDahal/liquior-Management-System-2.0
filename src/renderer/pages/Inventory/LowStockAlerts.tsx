@@ -8,8 +8,8 @@ import {
 import React, { useMemo, useState } from 'react';
 import { AlertFilters, AlertSummary, StockAlert } from '../../../shared/types';
 import { AlertSummaryCard, AlertTable, SearchAndFilters } from './components';
-import { useLowStock } from '../../../hooks/useLowStock';
-import { LoadingSpinner } from '../../../components/LoadingSpinner';
+import { useLowStock } from '../../hooks/useLowStock';
+import { LoadingSpinner } from '../../components/LoadingSpinner';
 
 export const LowStockAlerts: React.FC = () => {
   const [filters, setFilters] = useState<AlertFilters>({
