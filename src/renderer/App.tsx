@@ -43,7 +43,7 @@ const BarcodeScanner = React.lazy(() =>
 function App() {
   return (
     <HashRouter>
-      <Suspense fallback={<LoadingSpinner message="Loading application..." />}>
+      <Suspense fallback={<LoadingSpinner message="Loading application..." fullScreen={true} />}>
         <Routes>
           <Route path="/" element={<MainLayout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />

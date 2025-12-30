@@ -2,7 +2,7 @@ import { AlertTriangle, Plus } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { Product } from '../../../shared/types';
 import { useProducts } from '../../../hooks/useProducts';
-import { LoadingSpinner } from '../../../components/LoadingSpinner';
+import { GridSkeleton } from '../../../components/GridSkeleton';
 
 interface ProductGridProps {
   searchQuery: string;
@@ -40,8 +40,14 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ searchQuery, onAddToCa
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner message="Loading products..." />
+      <div>
+        {/* Category Filters Skeleton */}
+        <div className="flex items-center space-x-3 mb-6">
+          {Array.from({ length: 5 }).map((_, idx) => (
+            <div key={idx} className="h-10 bg-gray-200 rounded-lg w-24 animate-pulse"></div>
+          ))}
+        </div>
+        <GridSkeleton items={6} columns={2} />
       </div>
     );
   }

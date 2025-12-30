@@ -2,15 +2,23 @@ import { Eye, Receipt } from 'lucide-react';
 import React from 'react';
 import { Transaction } from '../../../../shared/types';
 import { useReceipts } from '../../../hooks/useReceipts';
-import { LoadingSpinner } from '../../../components/LoadingSpinner';
+import { ListSkeleton } from '../../../components/ListSkeleton';
 
 export const RecentTransactions: React.FC = () => {
   const { data: receiptsResponse, isLoading, error } = useReceipts(5);
   const transactions = receiptsResponse?.data || [];
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-        <LoadingSpinner message="Loading transactions..." />
+      <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Recent Transactions
+          </h3>
+          <button className="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+            View All
+          </button>
+        </div>
+        <ListSkeleton items={5} showIcon={true} showBadge={true} />
       </div>
     );
   }

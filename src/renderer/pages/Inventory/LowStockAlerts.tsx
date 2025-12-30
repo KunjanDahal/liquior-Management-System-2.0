@@ -9,7 +9,7 @@ import React, { useMemo, useState } from 'react';
 import { AlertFilters, AlertSummary, StockAlert } from '../../../shared/types';
 import { AlertSummaryCard, AlertTable, SearchAndFilters } from './components';
 import { useLowStock } from '../../hooks/useLowStock';
-import { LoadingSpinner } from '../../components/LoadingSpinner';
+import { TableSkeleton } from '../../components/TableSkeleton';
 
 export const LowStockAlerts: React.FC = () => {
   const [filters, setFilters] = useState<AlertFilters>({
@@ -72,8 +72,48 @@ export const LowStockAlerts: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="p-6">
-        <LoadingSpinner message="Loading low stock alerts..." />
+      <div className="p-6 space-y-8">
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex items-center space-x-3 mb-2">
+              <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-orange-600" />
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                Low Stock Alerts
+              </h1>
+            </div>
+            <p className="text-gray-600">
+              Monitor and manage products that are running low on inventory.
+            </p>
+          </div>
+        </div>
+
+        {/* Alert Summary Cards Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <div key={idx} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+              <div className="h-4 bg-gray-200 rounded w-24 animate-pulse mb-2"></div>
+              <div className="h-8 bg-gray-200 rounded w-16 animate-pulse"></div>
+            </div>
+          ))}
+        </div>
+
+        {/* Search and Filters Skeleton */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+          <div className="h-10 bg-gray-200 rounded-lg animate-pulse mb-4"></div>
+          <div className="flex gap-3">
+            <div className="h-10 bg-gray-200 rounded-lg animate-pulse flex-1"></div>
+            <div className="h-10 bg-gray-200 rounded-lg animate-pulse flex-1"></div>
+          </div>
+        </div>
+
+        {/* Active Alerts Table Skeleton */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden p-6">
+          <div className="h-6 bg-gray-200 rounded w-40 animate-pulse mb-4"></div>
+          <TableSkeleton rows={6} columns={7} />
+        </div>
       </div>
     );
   }

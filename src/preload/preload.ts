@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { IpcMessage, Product, StockAlert, Transaction, ApiResponse } from '../shared/types';
+import { IpcMessage, Product, StockAlert, Transaction, ApiResponse, Supplier } from '../shared/types';
 
 /**
  * Professional preload script that securely exposes APIs to the renderer process
@@ -93,6 +93,82 @@ interface ElectronAPI {
   getLowStockProducts: () => Promise<ApiResponse<StockAlert[]>>;
   getRecentReceipts: (limit?: number) => Promise<ApiResponse<Transaction[]>>;
   createSale: (payload: SalePayload) => Promise<ApiResponse<{ id: string }>>;
+  
+  // Dashboard operations
+  getDashboardStats: () => Promise<ApiResponse<{
+    todaysSales: number;
+    yesterdaysSales: number;
+    totalInventoryValue: number;
+    transactionsToday: number;
+    transactionsYesterday: number;
+    activeCustomers: number;
+    lowStockItemsCount: number;
+    monthlyRevenue: number;
+    lastMonthRevenue: number;
+  }>>;
+  getTopSellingProducts: (limit?: number) => Promise<ApiResponse<Array<{
+    id: string;
+    name: string;
+    category: string;
+    sales: number;
+    revenue: number;
+    trend: 'up' | 'down' | 'stable';
+  }>>>;
+  getWeeklySales: () => Promise<ApiResponse<Array<{
+    day: string;
+    sales: number;
+    transactions: number;
+  }>>>;
+
+  // Supplier operations
+  getSuppliers: () => Promise<ApiResponse<Supplier[]>>;
+  getSoldItems: (supplierId: number | null, startDate: string, endDate: string) => Promise<ApiResponse<Array<{
+    itemId: number;
+    description: string;
+    currentQuantity: number;
+    soldQuantity: number;
+    reorderPoint?: number;
+    cost?: number;
+    price?: number;
+  }>>>;
+  createPurchaseOrder: (payload: {
+    supplierId: number;
+    items: Array<{
+      itemId: number;
+      quantity: number;
+      cost: number;
+      price?: number;
+    }>;
+    orderDate?: Date;
+  }) => Promise<ApiResponse<{ id: number }>>;
+  createSupplier: (payload: {
+    name: string;
+    contactPerson?: string;
+    email?: string;
+    phone?: string;
+    address?: {
+      street?: string;
+      city?: string;
+      state?: string;
+      zipCode?: string;
+    };
+    paymentTerms?: string;
+    isActive?: boolean;
+  }) => Promise<ApiResponse<{ id: number }>>;
+  updateSupplier: (supplierId: number, payload: {
+    name?: string;
+    contactPerson?: string;
+    email?: string;
+    phone?: string;
+    address?: {
+      street?: string;
+      city?: string;
+      state?: string;
+      zipCode?: string;
+    };
+    paymentTerms?: string;
+    isActive?: boolean;
+  }) => Promise<ApiResponse<{ id: number }>>;
 
   // Authentication operations
   login: (request: LoginRequest) => Promise<ApiResponse<LoginResponse>>;
@@ -126,6 +202,54 @@ const electronAPI: ElectronAPI = {
   getLowStockProducts: () => ipcRenderer.invoke('data:get-low-stock'),
   getRecentReceipts: (limit?: number) => ipcRenderer.invoke('data:get-recent-receipts', limit),
   createSale: (payload: SalePayload) => ipcRenderer.invoke('data:create-receipt', payload),
+  
+  // Dashboard operations
+  getDashboardStats: () => ipcRenderer.invoke('data:get-dashboard-stats'),
+  getTopSellingProducts: (limit?: number) => ipcRenderer.invoke('data:get-top-selling-products', limit),
+  getWeeklySales: () => ipcRenderer.invoke('data:get-weekly-sales'),
+
+  // Supplier operations
+  getSuppliers: () => ipcRenderer.invoke('data:get-suppliers'),
+  getSoldItems: (supplierId: number | null, startDate: string, endDate: string) =>
+    ipcRenderer.invoke('data:get-sold-items', supplierId, startDate, endDate),
+  createPurchaseOrder: (payload: {
+    supplierId: number;
+    items: Array<{
+      itemId: number;
+      quantity: number;
+      cost: number;
+      price?: number;
+    }>;
+    orderDate?: Date;
+  }) => ipcRenderer.invoke('data:create-purchase-order', payload),
+  createSupplier: (payload: {
+    name: string;
+    contactPerson?: string;
+    email?: string;
+    phone?: string;
+    address?: {
+      street?: string;
+      city?: string;
+      state?: string;
+      zipCode?: string;
+    };
+    paymentTerms?: string;
+    isActive?: boolean;
+  }) => ipcRenderer.invoke('data:create-supplier', payload),
+  updateSupplier: (supplierId: number, payload: {
+    name?: string;
+    contactPerson?: string;
+    email?: string;
+    phone?: string;
+    address?: {
+      street?: string;
+      city?: string;
+      state?: string;
+      zipCode?: string;
+    };
+    paymentTerms?: string;
+    isActive?: boolean;
+  }) => ipcRenderer.invoke('data:update-supplier', supplierId, payload),
 
   // Authentication operations
   login: (request: LoginRequest) => ipcRenderer.invoke('auth:login', request),

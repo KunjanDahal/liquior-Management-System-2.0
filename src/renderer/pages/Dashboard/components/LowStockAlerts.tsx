@@ -2,7 +2,7 @@ import { AlertTriangle, Package, Plus } from 'lucide-react';
 import React from 'react';
 import { StockAlert } from '../../../../shared/types';
 import { useLowStock } from '../../../hooks/useLowStock';
-import { LoadingSpinner } from '../../../components/LoadingSpinner';
+import { ListSkeleton } from '../../../components/ListSkeleton';
 
 const priorityColors = {
   high: 'bg-orange-500 text-white',
@@ -16,8 +16,19 @@ export const LowStockAlerts: React.FC = () => {
   const alerts = (alertsResponse?.data || []).slice(0, 5); // Show top 5
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-        <LoadingSpinner message="Loading alerts..." />
+      <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-2">
+            <AlertTriangle className="w-5 h-5 text-orange-500" />
+            <h3 className="text-lg font-semibold text-gray-900">
+              Low Stock Alerts
+            </h3>
+          </div>
+          <button className="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+            View All
+          </button>
+        </div>
+        <ListSkeleton items={5} showIcon={true} showBadge={true} />
       </div>
     );
   }

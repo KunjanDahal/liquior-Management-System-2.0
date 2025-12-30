@@ -3,6 +3,9 @@ import { IpcMessage } from '../../shared/types';
 import { Logger } from '../utils/Logger';
 import { getAllItems, getLowStockItems } from '../database/repositories/items.repo';
 import { getRecentReceipts, createReceipt } from '../database/repositories/receipts.repo';
+import { getDashboardStats, getTopSellingProducts, getWeeklySalesData } from '../database/repositories/dashboard.repo';
+import { getAllSuppliers, createSupplier, updateSupplier, CreateSupplierPayload, UpdateSupplierPayload } from '../database/repositories/suppliers.repo';
+import { getSoldItemsBySupplier, createPurchaseOrder, CreatePurchaseOrderPayload } from '../database/repositories/purchase-orders.repo';
 import { CreateSalePayload, LoginRequest, ChangePasswordRequest } from '../database/types/dto.types';
 import { isDatabaseReady, getInitializationError } from '../database/connection';
 import { login, logout, getCurrentUser, changePassword } from '../auth/auth.service';
@@ -393,6 +396,286 @@ export class IpcManager {
         data: null,
         error: 'This endpoint is deprecated. Use data:create-receipt instead.',
       };
+    });
+
+    // Get dashboard statistics
+    ipcMain.handle('data:get-dashboard-stats', async () => {
+      if (!isDatabaseReady()) {
+        const initError = getInitializationError();
+        const errorMsg = initError 
+          ? `Database not ready: ${initError.message}`
+          : 'Database connection not initialized. Please check SQL Server configuration.';
+        this.logger.error('Database not ready for data:get-dashboard-stats');
+        return {
+          success: false,
+          data: null,
+          error: errorMsg,
+        };
+      }
+
+      try {
+        const stats = await getDashboardStats();
+        return {
+          success: true,
+          data: stats,
+          message: 'Dashboard stats retrieved successfully',
+        };
+      } catch (error) {
+        this.logger.error('Failed to get dashboard stats:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Failed to retrieve dashboard stats';
+        return {
+          success: false,
+          data: null,
+          error: errorMessage,
+        };
+      }
+    });
+
+    // Get top selling products
+    ipcMain.handle('data:get-top-selling-products', async (_, limit?: number) => {
+      if (!isDatabaseReady()) {
+        const initError = getInitializationError();
+        const errorMsg = initError 
+          ? `Database not ready: ${initError.message}`
+          : 'Database connection not initialized. Please check SQL Server configuration.';
+        this.logger.error('Database not ready for data:get-top-selling-products');
+        return {
+          success: false,
+          data: null,
+          error: errorMsg,
+        };
+      }
+
+      try {
+        const products = await getTopSellingProducts(limit || 5);
+        return {
+          success: true,
+          data: products,
+          message: 'Top selling products retrieved successfully',
+        };
+      } catch (error) {
+        this.logger.error('Failed to get top selling products:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Failed to retrieve top selling products';
+        return {
+          success: false,
+          data: null,
+          error: errorMessage,
+        };
+      }
+    });
+
+    // Get weekly sales data
+    ipcMain.handle('data:get-weekly-sales', async () => {
+      if (!isDatabaseReady()) {
+        const initError = getInitializationError();
+        const errorMsg = initError 
+          ? `Database not ready: ${initError.message}`
+          : 'Database connection not initialized. Please check SQL Server configuration.';
+        this.logger.error('Database not ready for data:get-weekly-sales');
+        return {
+          success: false,
+          data: null,
+          error: errorMsg,
+        };
+      }
+
+      try {
+        const weeklyData = await getWeeklySalesData();
+        return {
+          success: true,
+          data: weeklyData,
+          message: 'Weekly sales data retrieved successfully',
+        };
+      } catch (error) {
+        this.logger.error('Failed to get weekly sales data:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Failed to retrieve weekly sales data';
+        return {
+          success: false,
+          data: null,
+          error: errorMessage,
+        };
+      }
+    });
+
+    // Get all suppliers
+    ipcMain.handle('data:get-suppliers', async () => {
+      if (!isDatabaseReady()) {
+        const initError = getInitializationError();
+        const errorMsg = initError 
+          ? `Database not ready: ${initError.message}`
+          : 'Database connection not initialized. Please check SQL Server configuration.';
+        this.logger.error('Database not ready for data:get-suppliers');
+        return {
+          success: false,
+          data: null,
+          error: errorMsg,
+        };
+      }
+
+      try {
+        const suppliers = await getAllSuppliers();
+        return {
+          success: true,
+          data: suppliers,
+          message: 'Suppliers retrieved successfully',
+        };
+      } catch (error) {
+        this.logger.error('Failed to get suppliers:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Failed to retrieve suppliers';
+        return {
+          success: false,
+          data: null,
+          error: errorMessage,
+        };
+      }
+    });
+
+    // Get sold items by supplier and date range
+    ipcMain.handle('data:get-sold-items', async (_, supplierId: number | null, startDate: string, endDate: string) => {
+      if (!isDatabaseReady()) {
+        const initError = getInitializationError();
+        const errorMsg = initError 
+          ? `Database not ready: ${initError.message}`
+          : 'Database connection not initialized. Please check SQL Server configuration.';
+        this.logger.error('Database not ready for data:get-sold-items');
+        return {
+          success: false,
+          data: null,
+          error: errorMsg,
+        };
+      }
+
+      try {
+        const soldItems = await getSoldItemsBySupplier(supplierId, startDate, endDate);
+        return {
+          success: true,
+          data: soldItems,
+          message: 'Sold items retrieved successfully',
+        };
+      } catch (error) {
+        this.logger.error('Failed to get sold items:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Failed to retrieve sold items';
+        return {
+          success: false,
+          data: null,
+          error: errorMessage,
+        };
+      }
+    });
+
+    // Create purchase order
+    ipcMain.handle('data:create-purchase-order', async (_, payload: CreatePurchaseOrderPayload) => {
+      if (!isDatabaseReady()) {
+        const initError = getInitializationError();
+        const errorMsg = initError 
+          ? `Database not ready: ${initError.message}`
+          : 'Database connection not initialized. Please check SQL Server configuration.';
+        this.logger.error('Database not ready for data:create-purchase-order');
+        return {
+          success: false,
+          data: null,
+          error: errorMsg,
+        };
+      }
+
+      try {
+        if (!payload.items || payload.items.length === 0) {
+          return {
+            success: false,
+            data: null,
+            error: 'Purchase order must contain at least one item',
+          };
+        }
+
+        const orderId = await createPurchaseOrder(payload);
+        return {
+          success: true,
+          data: { id: orderId },
+          message: 'Purchase order created successfully',
+        };
+      } catch (error) {
+        this.logger.error('Failed to create purchase order:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Failed to create purchase order';
+        return {
+          success: false,
+          data: null,
+          error: errorMessage,
+        };
+      }
+    });
+
+    // Create supplier
+    ipcMain.handle('data:create-supplier', async (_, payload: CreateSupplierPayload) => {
+      if (!isDatabaseReady()) {
+        const initError = getInitializationError();
+        const errorMsg = initError 
+          ? `Database not ready: ${initError.message}`
+          : 'Database connection not initialized. Please check SQL Server configuration.';
+        this.logger.error('Database not ready for data:create-supplier');
+        return {
+          success: false,
+          data: null,
+          error: errorMsg,
+        };
+      }
+
+      try {
+        if (!payload.name || payload.name.trim() === '') {
+          return {
+            success: false,
+            data: null,
+            error: 'Supplier name is required',
+          };
+        }
+
+        const supplierId = await createSupplier(payload);
+        return {
+          success: true,
+          data: { id: supplierId },
+          message: 'Supplier created successfully',
+        };
+      } catch (error) {
+        this.logger.error('Failed to create supplier:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Failed to create supplier';
+        return {
+          success: false,
+          data: null,
+          error: errorMessage,
+        };
+      }
+    });
+
+    // Update supplier
+    ipcMain.handle('data:update-supplier', async (_, supplierId: number, payload: UpdateSupplierPayload) => {
+      if (!isDatabaseReady()) {
+        const initError = getInitializationError();
+        const errorMsg = initError 
+          ? `Database not ready: ${initError.message}`
+          : 'Database connection not initialized. Please check SQL Server configuration.';
+        this.logger.error('Database not ready for data:update-supplier');
+        return {
+          success: false,
+          data: null,
+          error: errorMsg,
+        };
+      }
+
+      try {
+        await updateSupplier(supplierId, payload);
+        return {
+          success: true,
+          data: { id: supplierId },
+          message: 'Supplier updated successfully',
+        };
+      } catch (error) {
+        this.logger.error('Failed to update supplier:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Failed to update supplier';
+        return {
+          success: false,
+          data: null,
+          error: errorMessage,
+        };
+      }
     });
   }
 

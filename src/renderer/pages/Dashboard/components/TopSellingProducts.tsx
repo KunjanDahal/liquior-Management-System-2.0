@@ -1,57 +1,7 @@
 import { Package, TrendingUp } from 'lucide-react';
 import React from 'react';
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  sales: number;
-  revenue: number;
-  trend: 'up' | 'down' | 'stable';
-}
-
-const topProducts: Product[] = [
-  {
-    id: '1',
-    name: "Jack Daniel's Tennessee Whiskey 750ml",
-    category: 'Whiskey',
-    sales: 45,
-    revenue: 2250.0,
-    trend: 'up',
-  },
-  {
-    id: '2',
-    name: 'Grey Goose Vodka 750ml',
-    category: 'Vodka',
-    sales: 38,
-    revenue: 1900.0,
-    trend: 'up',
-  },
-  {
-    id: '3',
-    name: 'Corona Extra 12-Pack',
-    category: 'Beer',
-    sales: 32,
-    revenue: 480.0,
-    trend: 'stable',
-  },
-  {
-    id: '4',
-    name: 'Patron Silver Tequila 750ml',
-    category: 'Tequila',
-    sales: 28,
-    revenue: 1400.0,
-    trend: 'down',
-  },
-  {
-    id: '5',
-    name: 'Champagne Dom Perignon',
-    category: 'Champagne',
-    sales: 15,
-    revenue: 2250.0,
-    trend: 'up',
-  },
-];
+import { useTopSellingProducts } from '../../../hooks/useTopSellingProducts';
+import { ListSkeleton } from '../../../components/ListSkeleton';
 
 const getTrendIcon = (trend: string) => {
   switch (trend) {
@@ -65,6 +15,38 @@ const getTrendIcon = (trend: string) => {
 };
 
 export const TopSellingProducts: React.FC = () => {
+  const { data: productsResponse, isLoading, error } = useTopSellingProducts(5);
+  const topProducts = productsResponse?.data || [];
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Top Selling Products
+          </h3>
+          <button className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors">
+            View All
+          </button>
+        </div>
+        <ListSkeleton items={5} showIcon={true} showBadge={false} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+        <div className="text-center py-8">
+          <p className="text-red-600 mb-2">Error loading products</p>
+          <p className="text-sm text-gray-500">
+            {error instanceof Error ? error.message : 'Unknown error'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200">
       <div className="flex items-center justify-between mb-6">
@@ -77,7 +59,12 @@ export const TopSellingProducts: React.FC = () => {
       </div>
 
       <div className="space-y-4">
-        {topProducts.map((product, index) => (
+        {topProducts.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500">No sales data available</p>
+          </div>
+        ) : (
+          topProducts.map((product, index) => (
           <div
             key={product.id}
             className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors duration-200"
@@ -118,7 +105,8 @@ export const TopSellingProducts: React.FC = () => {
               </div>
             </div>
           </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

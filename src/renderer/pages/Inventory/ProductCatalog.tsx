@@ -11,7 +11,7 @@ import React, { useMemo, useState } from 'react';
 import { Product } from '../../../shared/types';
 import { ProductTable } from './components/ProductTable';
 import { useProducts } from '../../hooks/useProducts';
-import { LoadingSpinner } from '../../components/LoadingSpinner';
+import { TableSkeleton } from '../../components/TableSkeleton';
 
 export const ProductCatalog: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -85,8 +85,37 @@ export const ProductCatalog: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="p-6">
-        <LoadingSpinner message="Loading products..." />
+      <div className="p-6 space-y-6">
+        {/* Header Section */}
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Product Catalog</h1>
+            <p className="text-gray-600 mt-1">
+              Manage your inventory, track stock levels, and organize products.
+            </p>
+          </div>
+        </div>
+
+        {/* Search and Filter Section */}
+        <div className="card-flat">
+          <div className="flex flex-col gap-4">
+            <div className="h-10 bg-gray-200 rounded-lg animate-pulse"></div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="h-10 bg-gray-200 rounded-lg animate-pulse flex-1"></div>
+              <div className="h-10 bg-gray-200 rounded-lg animate-pulse flex-1"></div>
+              <div className="h-10 bg-gray-200 rounded-lg animate-pulse w-32"></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Product List Section */}
+        <div className="card-flat">
+          <div className="flex justify-between items-center mb-6">
+            <div className="h-6 bg-gray-200 rounded w-32 animate-pulse"></div>
+            <div className="h-10 bg-gray-200 rounded-lg w-48 animate-pulse"></div>
+          </div>
+          <TableSkeleton rows={8} columns={7} />
+        </div>
       </div>
     );
   }

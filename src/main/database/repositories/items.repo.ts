@@ -32,8 +32,9 @@ export async function getAllItems(): Promise<Product[]> {
         i.Inactive,
         i.DateCreated,
         i.LastUpdated AS DateModified,
-        NULL AS SupplierName
+        s.SupplierName
       FROM Item i
+      LEFT JOIN Supplier s ON i.SupplierID = s.ID
       WHERE i.Inactive = 0 OR i.Inactive IS NULL
       ORDER BY i.Description
     `);
@@ -73,8 +74,9 @@ export async function getItemById(itemId: number): Promise<Product | null> {
           i.Inactive,
           i.DateCreated,
           i.LastUpdated AS DateModified,
-          NULL AS SupplierName
+          s.SupplierName
         FROM Item i
+        LEFT JOIN Supplier s ON i.SupplierID = s.ID
         WHERE i.ID = @itemId
       `);
 
@@ -110,8 +112,9 @@ export async function getLowStockItems(): Promise<StockAlert[]> {
         i.Inactive,
         i.DateCreated,
         i.LastUpdated AS DateModified,
-        NULL AS SupplierName
+        s.SupplierName
       FROM Item i
+      LEFT JOIN Supplier s ON i.SupplierID = s.ID
       WHERE (i.Inactive = 0 OR i.Inactive IS NULL)
         AND (i.Quantity <= i.ReorderPoint OR i.Quantity IS NULL OR i.Quantity = 0)
       ORDER BY 
